@@ -1,0 +1,23 @@
+{
+  "id": "1",
+  "maincategory": "Home and Garden",
+  "subcategory": [
+    {
+      "id": "1",
+      "name": "Home farbic",
+      "subtwo": [
+        {
+          "id": "1",
+          "name": "hotel",
+          "product_id": 123
+        },
+        {
+          "name": "hotel"
+        }
+      ]
+    },
+    {
+      "name": "Home farbic"
+    }
+  ]
+}
