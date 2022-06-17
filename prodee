@@ -1,0 +1,212 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import 'package:flutter_form_bloc/flutter_form_bloc.dart';
+
+class ProductListFieldForm extends StatelessWidget {
+  const ProductListFieldForm({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+        create: (context) => ProductListFieldFormBloc(),
+        child: Builder(builder: (context) {
+          //ကိုသုံးချင်တဲ့ Bloc ကို ကြေညာမှ ပါ
+          final productformBloc = context.read<ProductListFieldFormBloc>();
+          return Theme(
+              data: Theme.of(context).copyWith(
+                  inputDecorationTheme: InputDecorationTheme(
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20)))),
+              child: Scaffold(
+                resizeToAvoidBottomInset: false,
+                appBar: AppBar(title: const Text('product form')),
+                floatingActionButton: FloatingActionButton(
+                  onPressed: productformBloc.submit,
+                  child: const Icon(Icons.send),
+                ),
+                body:
+                    FormBlocListener<ProductListFieldFormBloc, String, String>(
+                  onSubmitting: (context, state) {
+                    LoadingDialog.show(context);
+                  },
+                  onSuccess: (context, state) {
+                    LoadingDialog.hide(context);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: SingleChildScrollView(
+                          child: Text(state.successResponse!)),
+                      duration: const Duration(milliseconds: 1500),
+                    ));
+                  },
+                  onFailure: (context, state) {
+                    LoadingDialog.hide(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(state.failureResponse!)));
+                  },
+                  child: SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: Column(children: <Widget>[
+                      TextFieldBlocBuilder(
+                        textFieldBloc: productformBloc.title,
+                        decoration: const InputDecoration(
+                            labelText: 'Title', prefixIcon: Icon(Icons.title)),
+                      ),
+                      BlocBuilder<
+                              ListFieldBloc<DescriptionFieldBloc, dynamic>,
+                              ListFieldBlocState<DescriptionFieldBloc,
+                                  dynamic>>(
+                          bloc: productformBloc.descriptions,
+                          builder: (context, state) {
+                            if (state.fieldBlocs.isNotEmpty) {
+                              return ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: state.fieldBlocs.length,
+                                  itemBuilder: (context, i) {
+                                    return DescriptionCard(
+                                        description_index: i,
+                                        description_field: state.fieldBlocs[i],
+                                        onRemoveMember: () => productformBloc
+                                            .removeDescription(i));
+                                  });
+                            }
+                            return Container();
+                          }),
+                      ElevatedButton(
+                          onPressed: productformBloc.addDescription,
+                          child: const Text('add Description'))
+                    ]),
+                  ),
+                ),
+              ));
+        }));
+  }
+}
+
+class ProductListFieldFormBloc extends FormBloc<String, String> {
+  final title = TextFieldBloc(name: 'title');
+  final descriptions =
+      ListFieldBloc<DescriptionFieldBloc, dynamic>(name: 'descriptions');
+  ProductListFieldFormBloc() {
+    addFieldBlocs(fieldBlocs: [
+      title,
+      descriptions,
+    ]);
+  }
+  void addDescription() {
+    print("add desc");
+    descriptions.addFieldBloc(DescriptionFieldBloc(
+        name: 'descriptions',
+        lang: TextFieldBloc(name: 'lang'),
+        desc: TextFieldBloc(name: 'desc')));
+  }
+
+  void removeDescription(int index) {
+    descriptions.removeFieldBlocAt(index);
+  }
+
+  @override
+  FutureOr<void> onSubmitting() {
+    // TODO: implement onSubmitting
+    throw UnimplementedError();
+  }
+}
+
+class DescriptionFieldBloc extends GroupFieldBloc {
+  final TextFieldBloc lang;
+  final TextFieldBloc desc;
+  DescriptionFieldBloc({
+    required this.lang,
+    required this.desc,
+    String? name,
+  }) : super(name: name, fieldBlocs: [lang, desc]);
+}
+
+class DescriptionCard extends StatelessWidget {
+  final int description_index;
+  final DescriptionFieldBloc description_field;
+  final VoidCallback onRemoveMember;
+
+  const DescriptionCard({
+    Key? key,
+    required this.description_index,
+    required this.description_field,
+    required this.onRemoveMember,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    return Card(
+      color: Colors.blue[100],
+      margin: const EdgeInsets.all(8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Member #${description_index + 1}',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: onRemoveMember,
+                ),
+              ],
+            ),
+            TextFieldBlocBuilder(
+              textFieldBloc: description_field.lang,
+              decoration: const InputDecoration(
+                labelText: 'language',
+              ),
+            ),
+            TextFieldBlocBuilder(
+              textFieldBloc: description_field.desc,
+              decoration: const InputDecoration(
+                labelText: 'Detail Description',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class LoadingDialog extends StatelessWidget {
+  static void show(BuildContext context, {Key? key}) => showDialog<void>(
+        context: context,
+        useRootNavigator: false,
+        barrierDismissible: false,
+        builder: (_) => LoadingDialog(key: key),
+      ).then((_) => FocusScope.of(context).requestFocus(FocusNode()));
+
+  static void hide(BuildContext context) => Navigator.pop(context);
+
+  const LoadingDialog({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Center(
+        child: Card(
+          child: Container(
+            width: 80,
+            height: 80,
+            padding: const EdgeInsets.all(12.0),
+            child: const CircularProgressIndicator(),
+          ),
+        ),
+      ),
+    );
+  }
+}
